@@ -23,10 +23,6 @@ The aim of this document is to analyse a dataset of students by applying general
 
 In this section, the raw data is analysed and visualised in order to gain knowledge about the dataset, which will be applied in next sections. The dataset is stored in the file named *student-mat.csv*.
 
-```{r include=FALSE}
-setwd("/home/oscar/ownCloud/Oscar/Documentos/Clases/Master Ingenieria Computacional y Sistemas Inteligentes - UPV/Exploracion y analisis de datos/Trabajo/student")
-```
-
 ```{r echo = FALSE}
 x <- read.table("student-mat.csv",sep=";",header=TRUE)
 ```
