@@ -1,0 +1,602 @@
+---
+title: "Analysis of high school mathematics students"
+author: "Oscar Serradilla Casado"
+output:
+  html_document:
+    theme: united
+    toc: yes
+  word_document:
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+The aim of this document is to analyse a dataset of students by applying general descriptive analysis, dimensionality reduction methods, clustering, regression and general linear models. The selected dataset contains students' achievement in mathematics subject of two Portuguese secondary education schools. Data source: University of California, Irvine's dataset database:
+[Student Performance Data Set](https://archive.ics.uci.edu/ml/datasets/Student+Performance)
+
+
+## Data analysis
+
+In this section, the raw data is analysed and visualised in order to gain knowledge about the dataset, which will be applied in next sections. The dataset is stored in the file named *student-mat.csv*.
+
+```{r include=FALSE}
+setwd("/home/oscar/ownCloud/Oscar/Documentos/Clases/Master Ingenieria Computacional y Sistemas Inteligentes - UPV/Exploracion y analisis de datos/Trabajo/student")
+```
+
+```{r echo = FALSE}
+x <- read.table("student-mat.csv",sep=";",header=TRUE)
+```
+
+### Attribute Information
+
+```{r echo = FALSE, results = 'asis'}
+attributes <- matrix(NA, nrow = 33, ncol = 5)
+colnames(attributes) <- c("id", "name", "description", "type", "possible values")
+attributes[, 1] <- 1:33
+attributes[, 2] <- c("school", "sex", "age", "address", "famsize", "Pstatus", "Medu", "Fedu", "Mjob", "Fjob", "reason", "guardian", "traveltime", "studytime", "failures", "schoolsup", "famsup", "paid", "activities", "nursery", "higher", "internet", "romantic", "famrel", "freetime", "goout", "Dalc", "Walc", "health", "absences", "G1", "G2", "G3")
+attributes[, 3] <- c("student's school", "student's sex", "student's age", "student's home address", "family size", "parent's cohabitation status", "mother's education", "father's education", "mother's job", "father's job", "reason to choose this school", "student's guardian", "home to school travel time", "weekly study time", "number of past class failures", "extra educational support", "family educational support", "extra paid classes within the course", "extra-curricular activities", "attended nursery school", "wants to take higher education", "Internet access at home", "with a romantic relationship", "quality of family relationships", "free time after school", "going out with friends", "workday alcohol consumption", "weekend alcohol consumption", "current health status", "number of school absences", "first period grade", "second period grade", "final grade")
+attributes[, 4] <- c("binary", "binary", "numeric", "binary", "binary", "binary", "numeric", "numeric", "nominal", "nominal", "nominal", "numeric", "numeric", "numeric", "binary", "binary", "binary", "binary", "binary", "binary", "binary", "binary", "numeric", "numeric", "numeric", "numeric", "numeric", "numeric", "numeric", "numeric", "numeric", "numeric", "numeric")
+attributes[, 5] <- c("'GP' - Gabriel Pereira or 'MS' - Mousinho da Silveira", "'F' - female or 'M' - male", "from 15 to 22", "'U' - urban or 'R'", "'LE3' - less or equal to 3 or 'GT3' - greater than 3", "'T' - living together or 'A' - apart", "0 - none, 1 - primary education (4th grade), 2 - 5th to 9th grade, 3 - secondary education or 4 - higher education", "0 - none, 1 - primary education (4th grade), 2 - 5th to 9th grade, 3 - secondary education or 4 - higher education", "'teacher', 'health' care related, civil 'services' (e.g. administrative or police), 'at_home' or 'other'", "'teacher', 'health' care related, civil 'services' (e.g. administrative or police), 'at_home' or 'other'", "close to 'home', school 'reputation', 'course' preference or 'other'", "'mother', 'father' or 'other'", "1 - <15 min., 2 - 15 to 30 min., 3 - 30 min. to 1 hour, or 4 - >1 hour", "1 - <2 hours, 2 - 2 to 5 hours, 3 - 5 to 10 hours, or 4 - >10 hours", "numeric: n if 1<=n<3, else 4", "yes or no", "yes or no", "yes or no", "yes or no", "yes or no", "yes or no", "yes or no", "yes or no", "from 1 - very bad to 5 - excellent", "from 1 - very low to 5 - very high", "from 1 - very low to 5 - very high", "from 1 - very low to 5 - very high", "from 1 - very low to 5 - very high", "from 1 - very bad to 5 - very good", "from 0 to 93", "from 0 to 20", "from 0 to 20", "from 0 to 20")
+library(knitr)
+kable(attributes, align = 'l')
+```
+
+
+### Descriptive statistics
+
+This section analyses the dataset through correlation calculation and graphics visualisation.
+
+#### Correlation among variables
+
+Correlations are used to measure the dependences among the variables of the dataset. They will help in selecting which variables influence the most in students' grades.
+
+```{r echo=FALSE}
+allVariables <- 1:33
+numericVariables <- c(3, 7, 8, 13, 14, 15, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33)
+factorVariables <- allVariables[-numericVariables]
+numericVariablesMatrix <- x[, numericVariables]
+factorVariablesMatrix <- x[, factorVariables]
+```
+
+##### Correlation among numeric variables
+The correlation among numeric variables is calculated using [Pearson's correlation coefficient](https://en.wikipedia.org/wiki/Pearson_product-moment_correlation_coefficient), which measures the linear dependence between two variables. It is a value in range [-1,1], where 1 means total positive linear correlation, 0 means no linear correlation, and −1 means total negative linear correlation.  
+After calculating them, only the ones with biggest absolute value are shown here to extract conclusions:
+
+```{r echo=FALSE}
+variablesForGradesCor <- c(14, 15, 27, 28, 31, 32, 33)
+kable(round(cor(x[, variablesForGradesCor]), 2), caption = "Grades", align = 'l')
+```
+
+* The grades of the students are very related among themselves, meaning that each student scores similarly in the three grades.
+* The number of failures of the students are quite related to their grades. The correlation is negative, meaning that the more failures a student has, the lower he or she scores in grades.
+* The study time is negatively related to failures and alcohol consumption, meaning that the more a student studies, the less alcohol consumes and less failures has. He or she will also score higher grades (study time is positively related with grades).
+
+```{r echo=FALSE}
+variablesForParentsEduCor <- c(7, 8)
+tmp <- round(cor(x[, variablesForParentsEduCor]), 2)
+tmp <- matrix(tmp[2], dimnames = as.list(colnames(tmp)))
+kable(tmp, caption = "Parents' education", align = 'l')
+```
+
+* Students' father and mother educations are strongly related. This means that people tend to have children with a partner that has the same or near education level.
+
+```{r echo=FALSE}
+variablesForLeisureCor <- c(25, 26, 27, 28)
+kable(round(cor(x[, variablesForLeisureCor]), 2), caption = "Leisure", align = 'l')
+```
+
+* The amount of alcohol consumed daily by the students is related to the amount of alcohol they consume at weekends.
+* Going out is related to free time and alcohol consumption. The more free time the students have, the more they go out and the more alcohol they consume.
+
+##### Correlation among numeric and factor variables
+The correlation among numeric and factor variables is calculated using [Eta-squared](https://en.wikipedia.org/wiki/Correlation_ratio), which measures the relationship between the statistical dispersion within individual categories and the dispersion. This correlation does not have to be linear. It is in range [0,1], where 1 means total correlation and 0 means no correlation.  
+After calculating them, only the ones with biggest value are shown here to extract conclusions:
+
+```{r echo=FALSE}
+eta2 <- function(x, factor)
+{
+ niv <- levels(factor)
+ numniv <- length(niv)
+ SSB <- 0
+ for(i in 1:numniv)
+ {
+   xx <- x[factor==niv[i]]
+   nxx <- length(xx)
+   SSB <- SSB + nxx*(mean(xx)-mean(x))^2
+ }
+ SST <- (length(x)-1)*var(x)
+#
+ eta2 <- SSB/SST
+#
+ return(eta2)
+}
+correlationMatrix <- matrix(0, length(numericVariables), length(factorVariables))
+colnames(correlationMatrix) <- colnames(factorVariablesMatrix)
+rownames(correlationMatrix) <- colnames(numericVariablesMatrix)
+for(i in 1:length(numericVariables)) {
+        for(j in 1:length(factorVariables)) {
+                correlationMatrix[i, j] <- eta2(numericVariablesMatrix[, i], factorVariablesMatrix[, j])
+        }
+}
+kable(round(correlationMatrix[2:3, 6:7], 2), caption = "Parents' education and job", align = 'l')
+```
+
+* The only significant correlations found by these calculus is the one among students' parents educations and their jobs. This means that each parent's job has to do with what he or she studied. Moreover, each parent's job is related with the other one's education because, as seen in the previous subsection, parents' education is related.
+
+#### Visualisation of variables
+
+In this section, graphics are used to analyse variables and the dependence among them in a visual way.
+
+##### Univariate analysis
+
+In this subsection, the variables are analysed individually.
+
+```{r echo=FALSE}
+n <- 395
+par(mfrow = c(1,3))
+hist(x$G1, col="red", xlab="G1", main="")
+hist(x$G2, col="red", xlab="G2", main="Frequency of grades")
+hist(x$G3, col="red", xlab="G3", main="")
+```
+
+* Comparing the final grades' histogram with the other ones there is a big raise in the number of students that are in the [0-2.5) range.
+
+```{r echo=FALSE}
+par(mfrow = c(1,3))
+boxplot(x$G1, col="red", las=1, xlab="G1", main="")
+boxplot(x$G2, col="red", las=1, xlab="G2", main="Statistics of grades")
+boxplot(x$G3, col="red", las=1, xlab="G3", main="")
+```
+
+* These box plots show that, on average, grades are higher in second period but there are also outliers with 0 grade.
+
+```{r echo=FALSE}
+par(mfrow = c(1,3))
+barplot(table(x$sex), col="red", xlab="sex", names = c("female", "male"), main="Students' sex frequency")
+barplot(table(x$school), col="red", xlab="school", names = c("Gabriel Pereira", "Mousinho Silveira"), main="Students' school frequency", cex.names = 0.8)
+barplot(table(x$address), col="red", xlab="address", names = c("rural", "urban"), main="Students' address frequency")
+```
+
+* There are slightly more female than male students.
+* The data was gathered mostly from Gabriel Pereira (349) and only a little from Mousinho da Silveira (46).
+* The majority of the students live in urban area although there are nearly 90 of them living in rural areas.
+
+```{r echo=FALSE}
+par(mfrow = c(1,2))
+barplot(table(x$higher), col="red", xlab="higher", names = c("no", "yes"), main="Students' higher frequency")
+barplot(table(x$internet), col="red", xlab="internet", names = c("no", "yes"), main="Students' internet frequency")
+```
+
+* There are very few students that do not want to course higher studies.
+* Most of the students have internet access at home.
+
+```{r echo=FALSE}
+par(mfrow = c(1,2))
+barplot(table(x$Dalc), col="red", xlab="consumption level", main="Daily alcohol frequency")
+barplot(table(x$Walc), col="red", xlab="consumption level", main="Weekend alcohol frequency")
+```
+
+* These bar plots show that students hardly consume alcohol during the week but consume much more at weekends.
+
+```{r echo=FALSE}
+par(mfrow = c(1,2))
+barplot(table(x$Medu), col="red", xlab="education level", main="Mother education frequency")
+barplot(table(x$Fedu), col="red", xlab="education level", main="Father education frequency")
+```
+
+* The last two graphics show students' parents' education. Most of them have completed primary education.
+
+##### Bivariate analysis
+
+In this subsection, the variables are analysed in pairs.
+
+```{r echo=FALSE}
+par(mfrow = c(1,2))
+boxplot(x$G3 ~ x$sex, col="red", names = c("female", "male"),
+     xlab="sex", ylab="G3", main="Sex and G3")
+plot(x$failures, x$G3, xlab="failures", ylab="G3", main="Failures and G3")
+```
+
+* On average, males get better final grades than females.
+* The more failures a student has, the smaller final grade he/she will score.
+
+```{r echo=FALSE}
+par(mfrow = c(1,3))
+plot(x$G1, x$G3, xlab="G1", ylab="G3",  main="G1 and G3")
+plot(x$G2, x$G3, xlab="G2", ylab="G3",  main="G2 and G3")
+plot(x$G1, x$G2, xlab="G1", ylab="G2",  main="G1 and G2")
+```
+
+* There is a clear linearity among students' three grades (for more information, see [Correlation among numeric variables](#correlation-among-numeric-variables)). However, there are several outlier students with G2 or G3 equal to 0 that are not aligned with the rest and do not follow any linearity.
+
+```{r echo=FALSE}
+par(mfrow = c(1,2))
+plot(x$sex, x$absences, col="red", xlab="sex", ylab="absences",  main="Sex and absences")
+boxplot(x$G3 ~ x$higher, col="red", names = c("No", "Yes"), xlab = "higher", ylab ="G3", main = "Higher and G3")
+```
+
+* Female and male students absence equally on average, but females are more outliers (the ones that absence do it many more days).
+* The students that want to take higher education have higher grades than the ones that do not want to.
+  
+##### Multivariate analysis
+
+In this subsection, the variables are analysed in groups of more than 2.  
+
+The following graphic shows a parallel coordinates plot in which students’ grades evolution is shown. The colour of each student is represented by his/her sex: red for females and blue for males:
+
+```{r echo=FALSE}
+library(MASS)
+isMaleVector <- as.integer(x$sex=="M")+1
+colorSex <- c("red", "blue")
+parcoord(x[,31:33], col=colorSex[isMaleVector], var.label = TRUE, main = "Students' grades and sex")
+title(xlab="evolution of students' grades")
+```
+
+The following graphic also shows a parallel coordinates plot in which students' grades evolution is shown. However, the colour assigned to each student represents if he/she has passed the course: green for passed (final grade bigger or equal to 10) and red for not passed:
+
+```{r echo=FALSE}
+passedFinalGradeTF <- as.integer(x$G3 >= 10)+1
+color <- c("red", "green")
+parcoord(x[,31:33], col=color[passedFinalGradeTF], var.label = TRUE, main = "Students' grades and passed or not")
+title(xlab="evolution of students' grades")
+```
+
+The following graphic is similar to the previous one but using more colours to divide students by their final mark in 5 ranges:  
+
+* (15.999,20] = dark green
+* (11.999,15.999] = green
+* (7.999,11.999] = orange
+* (3.999,7.999] = red
+* [0,3.999] = dark red
+
+```{r echo=FALSE}
+gradesAvailableColors <- c("darkred", "red", "orange", "green", "green4")
+gradesNumeric <- c(3.999, 7.999, 11.999, 15.999, 20)
+gradesColors <- matrix(NA, n, 1)
+for(i in 1:n) {
+        for(j in 1:length(gradesNumeric)) {
+                if (x$G3[i] <= gradesNumeric[j]) {
+                        gradesColors[i, 1] <- gradesAvailableColors[j]
+                        break
+                }
+        }
+}
+parcoord(x[,31:33], col=gradesColors, var.label = TRUE, main = "Students' grades and final grade in ranges")
+title(xlab="evolution of students' grades")
+```
+
+The conclusion obtained from the previous graphic is that the ones that score 0 in the second grade also score 0 in the last grade.  
+
+The following 3D graphic shows the three grades of each student. The colour of each point represents if he/she has passed the course or not: green for passed (final grade bigger or equal to 10) and red for not passed:
+
+```{r echo=FALSE}
+library(scatterplot3d)
+scatterplot3d(x[,31:33], color=color[passedFinalGradeTF])
+```
+
+In the plane formed by G1, G2 and G3=0 there are the outliers (students that score 0 in G3 but have a normal grade in G1 and maybe also in G2).
+
+## Dimensionality reduction
+
+### Variables selection
+
+In this section, only the most relevant variables are kept, discarding the not useful ones, based on the knowledge obtained from analysing the dataset in the [Descriptive statistics](#descriptive-statistics) section. The selected columns are the following ones: 
+
+| sex | age | address | studytime | failures | higher | absences | schoolsup | famsup | paid | G1 | G2 | G3 |
+|-----|-----|---------|-----------|----------|--------|----------|-----------|--------|------|----|----|----|
+| | | | | | | | | | | | | |
+```{r echo=FALSE}
+keep <- c("sex", "age", "address", "studytime", "failures", "higher", "absences", "schoolsup", "famsup", "paid", "G1", "G2", "G3")
+x <- x[keep]
+```
+
+### Preprocessing
+
+Here, the selected variables are preprocessed to prepare them for clustering, regression and linear modelling.
+First, the boolean variables are turn into 0s and 1s.
+```{r echo=FALSE}
+x$sex <- as.factor(x$sex=="M") # 0-Female; 1-Male
+x$address <- as.factor(x$address=="U") # 0-Rural; 1-Urban
+x$higher <- as.factor(x$higher=="yes") # 0-no planned higher studies; 1-planned higher studies
+x$schoolsup <- as.integer(x$schoolsup=="yes")
+x$famsup <- as.integer(x$famsup=="yes")
+x$paid <- as.integer(x$paid=="yes")
+```
+
+The variables **schoolsup**, **famsup** and **paid** all refer to different ways of the student having extra support classes, so a Multi Dimensional Scaling (MDS) is done to reduce the dimensionality from this three variables to only one variable. For calculating distance among instances, the equation 1-(Sokal-Michener similarity) has been used. This similarity has been chosen to give the same importance to the cases in which two variables are equal to 0, because all these binary variables are symmetric.
+
+```{r include=FALSE, echo=FALSE}
+extraSupport <- x[c("schoolsup", "famsup", "paid")]
+library(arules)
+extraSupport <- as.matrix(extraSupport)
+distExtraSupport <- dissimilarity(extraSupport, method = "matching") # Distance = 1 - (Sokal-Michener similarity)
+distExtraSupport <- as.matrix(distExtraSupport)
+# As we have calculated the distance matrix using Sokal-Michener, we are going to perform a MDS (because PCA calculates automatically uses jaccard distance)
+out <- cmdscale(distExtraSupport, 3, eig = TRUE)
+landa <- out$eig^2
+plot(landa[1:3], type = "b") 
+explainedVariance <- landa[1]/sum(landa)
+landa[2]/sum(landa) # Explains less than random (33%). Moreover if we use the elbow's criterion, we should only use one variable
+mdsResult <- out$points[, 1]
+```
+
+The result of the MDS is inserted in the data matrix and the variables represented by it are removed. In the end, these are the columns of the preprocessed data:
+
+| sex | age | address | studytime | failures | higher | absences | G1 | G2 | G3 | support |
+|-----|-----|---------|-----------|----------|--------|----------|----|----|----|---------|
+| | | | | | | | | | | |
+
+```{r echo=FALSE}
+x <- cbind(x, support = mdsResult)
+x <- subset(x, select=-c(schoolsup, famsup, paid))
+xNotScaled <- x
+```
+
+As last preprocessing step, the data is prepared for clustering by scaling its variables (columns) to have mean equal to 0 and standard deviation equal to 1 so that all variables weight the same.
+
+```{r echo=FALSE}
+binaryColNumber <- c(1,3,6)
+cuantitativeCols <- colnames(x)[-binaryColNumber]
+x[, cuantitativeCols] <- apply(x[, cuantitativeCols], 2, scale)
+```
+
+## Clustering
+
+In this section, clustering methods are applied to students' variables in order to find clusters that group students of similar characteristics. Two types of clustering methods are used: Ward method to perform hierarchical clustering and Partitioning Around Medoids (PAM) to perform partitional clustering. After applying them, the relationship among students in the same clusters is analysed.   
+
+The gower distance has been used to calculate distances among the instances of the data (students). The reason for choosing this distance is that the variables are binary and numeric so other distances such as euclidean are not valid.
+
+```{r include=FALSE, echo=FALSE}
+library(cluster)
+gowerDist <- daisy(x, metric = "gower", list(symm=binaryColNumber)) # All the binary variables we have are symmetric (the equal 0s are alike)
+```
+
+The following dendrogram shows a hierarchical cluster built using the Ward method:
+
+```{r echo=FALSE}
+out <- hclust(gowerDist, method = "ward.D2")
+plot(out, labels = FALSE, xlab = "student instances", ylab = "height", sub="", main = "Ward Dendrogram - selected variables")
+par(mar=c(0, 4, 4, 2)) # To remove the bottom margin
+rect.hclust(out, 3)
+```
+
+The dendrogram suggests 3 clusters by looking at the heights of the unions, cutting for example at height 2.0.
+
+```{r echo=FALSE}
+partward <- cutree(out, k=3)
+```
+
+Alternatively, Partitioning Around Medoids (PAM) method is used to perform partitional clustering. To choose the best number of clusters k, an iteration between k=2 and k=10 has been used to measure the quality of the clusters by calculating the mean of the silhouette coefficient.
+
+```{r echo=FALSE}
+vectorMeansSilhouette <- c()
+for(i in 2:10) {
+  part <- pam(gowerDist,i)$clustering
+  silhouetteXi <- silhouette(part, gowerDist)
+  meanSilhouettei <- mean(silhouetteXi[, 3])
+  vectorMeansSilhouette <- c(vectorMeansSilhouette, meanSilhouettei)
+}
+```
+ 
+After calculating the means of silhouette, the number of clusters that has obtained the best result is k=3.
+
+```{r echo=FALSE}
+partpam <- pam(gowerDist, 3)$clustering
+```
+
+Both clustering methods, Ward and PAM, indicate that the best number of clusters for the selected variables on this data is 3.  
+
+The relationship among students of the same cluster can not be directly seen in a graphic because their distance has been calculated using 11 variables, so a 11 dimensional space graphic would be needed. However, students that are in the same cluster share values among variables. After analysing students' variables by clusters (using ward's partition), these are the obtained conclusions: The variables **age**, **studytime**, **failures**, **absences**, **G1**, **G2**, **G3** and **support** do not influence when selecting to which cluster a student belongs. However, the following variables are critical (their logical value between parenthesis):
+
+| Cluster |    sex    |  address |   higher  |
+|---------|-----------|----------|-----------|
+|    1    | female(F) | urban(T) | higher(T) |
+|    2    |  male(T)  | urban(T) | both(T&F) |
+|    3    | both(T&F) | rural(F) | higher(T) |
+
+As there are only three variables that influence in the assignation of the cluster, they can be shown in a 3D graphic. A small jitter has been added to avoid overlapping of the points in the graphic because variables take boolean values (0 or 1). The red colour has been assigned to the first cluster, blue for the second one and green for the third one: 
+
+```{r echo=FALSE, include=FALSE}
+library(scatterplot3d)
+xAsNumericForJitter <- xNotScaled[, c(1,3,6)]
+for(i in 1:3){
+        tmp <- 0+as.logical(levels(xAsNumericForJitter[, i]))[xAsNumericForJitter[, i]]
+        xAsNumericForJitter[, i] <- tmp
+}
+apply(xAsNumericForJitter, 2, as.numeric)
+xAsNumericForJitter <- as.matrix(xAsNumericForJitter)
+```
+
+```{r echo=FALSE}
+color <- c("red", "blue", "green")
+scatterplot3d(jitter(xAsNumericForJitter, 0.3), color=color[partward], main = "Ward partition - sex, address and higher")
+```
+
+The graphic shows the same results as the previous table.  
+
+However, these clustering partitions do not divide students according to their most important variables : their grades. For that reason, the same clustering methods are applied to only the grades of the students.
+
+```{r echo=FALSE}
+grades <- xNotScaled[c("G1", "G2", "G3")]
+gradesDist <- dist(grades)
+```
+
+This time, the data is not scaled because all the grades are in the same range and similarly distributed. The euclidean distance is used to measure distance among them.  
+The following dendrogram shows a hierarchical cluster built using the Ward method:
+
+```{r echo=FALSE}
+out <- hclust(gradesDist, method = "ward.D2")
+plot(out, labels = FALSE, xlab = "student instances", ylab = "height", sub="", main = "Ward Dendrogram - grades k=2")
+par(mar=c(0, 4, 4, 2)) # To remove the bottom margin
+rect.hclust(out, 2)
+```
+
+The dendrogram suggests 2 clusters by looking at the heights of the unions, cutting for example at height 100.
+
+```{r echo=FALSE}
+partward <- cutree(out, k=2)
+```
+
+Alternatively, Partitioning Around Medoids (PAM) method is used to perform partitional clustering to grades variables. To choose the best number of clusters k, an iteration between k=2 and k=10 has been used to measure the quality of the clusters by calculating the mean of the silhouette coefficient.
+
+```{r echo=FALSE}
+vectorMeansSilhouette <- c()
+for(i in 2:10) {
+  part <- pam(gradesDist,i)$clustering
+  silhouetteXi <- silhouette(part, gradesDist)
+  meanSilhouettei <- mean(silhouetteXi[, 3])
+  vectorMeansSilhouette <- c(vectorMeansSilhouette, meanSilhouettei)
+}
+```
+ 
+After calculating the means of silhouette, the number of clusters that has obtained the best result is k=2.
+
+```{r echo=FALSE}
+partpam <- pam(gradesDist, 2)$clustering
+```
+
+Both clustering methods, Ward and PAM, indicate that the best number of clusters for the grades is 2. The red colour is assigned to cluster 1 and the green one to cluster 2.
+
+The following graphics show grades in pairs given the students' belonging to the Ward clusters (k=2):
+
+```{r echo=FALSE}
+color <- c("red", "green")
+par(mfrow = c(1,3))
+plot(xNotScaled$G1, xNotScaled$G3, xlab = "G1", ylab = "G3", main = "Ward partition - G1 and G3")
+points(xNotScaled$G1, xNotScaled$G3, pch=21, bg=color[partward])
+plot(xNotScaled$G2, xNotScaled$G3, xlab = "G2", ylab = "G3", main = "Ward partition - G2 and G3")
+points(xNotScaled$G2, xNotScaled$G3, pch=21, bg=color[partward])
+plot(xNotScaled$G1, xNotScaled$G2, xlab = "G1", ylab = "G2", main = "Ward partition - G1 and G2")
+points(xNotScaled$G1, xNotScaled$G2, pch=21, bg=color[partward])
+```
+
+The following graphics show grades in pairs given the students' belonging to the PAM clusters:
+
+```{r echo=FALSE}
+color <- c("red", "green")
+par(mfrow = c(1,3))
+plot(xNotScaled$G1, xNotScaled$G3, xlab = "G1", ylab = "G3", main = "PAM partition - G1 and G3")
+points(xNotScaled$G1, xNotScaled$G3, pch=21, bg=color[partpam])
+plot(xNotScaled$G2, xNotScaled$G3, xlab = "G2", ylab = "G3", main = "PAM partition - G2 and G3")
+points(xNotScaled$G2, xNotScaled$G3, pch=21, bg=color[partpam])
+plot(xNotScaled$G1, xNotScaled$G2, xlab = "G1", ylab = "G2", main = "PAM partition - G1 and G2")
+points(xNotScaled$G1, xNotScaled$G2, pch=21, bg=color[partpam])
+```
+
+The conclusion of comparing the graphics obtained by the two partitions is that both clustering methods obtain similar clusters.  
+As can be seen, the two obtained clusters separate the students that score grades of 10 and higher and the ones that score around 10 and less. The outliers (the students that score 0 in the second or final grades) belong to the second cluster.   
+
+Even if both clustering methods choose k=2 as the best number of clusters, the Ward's dendrogram also suggests that there could be a good partition at k=4. The dendrogram is again cut, this time at height 50 to obtain 4 clusters:
+
+```{r echo=FALSE}
+out <- hclust(gradesDist, method = "ward.D2")
+plot(out, labels = FALSE, xlab = "student instances", ylab = "height", sub="", main = "Ward Dendrogram - grades k=4")
+par(mar=c(0, 4, 4, 2)) # To remove the bottom margin
+rect.hclust(out, 4)
+partward <- cutree(out, k=4)
+```
+
+The following graphics show grades in pairs given the students' belonging to the Ward clusters (k=4). The red colour is assigned to cluster 1, dark green to cluster 2, green to cluster 3 and dark red to cluster 4:
+
+```{r echo=FALSE}
+color <- c("red", "green4", "green", "darkred")
+par(mfrow = c(1,3))
+plot(xNotScaled$G1, xNotScaled$G3, xlab = "G1", ylab = "G3", main = "Ward partition - G1 and G3")
+points(xNotScaled$G1, xNotScaled$G3, pch=21, bg=color[partward])
+plot(xNotScaled$G2, xNotScaled$G3, xlab = "G2", ylab = "G3", main = "Ward partition - G2 and G3")
+points(xNotScaled$G2, xNotScaled$G3, pch=21, bg=color[partward])
+plot(xNotScaled$G1, xNotScaled$G2, xlab = "G1", ylab = "G2", main = "Ward partition - G1 and G2")
+points(xNotScaled$G1, xNotScaled$G2, pch=21, bg=color[partward])
+```
+
+These are the conclusions obtained from the last graphics:
+
+* The cluster 4 only holds outliers (students that score 0 at G3).
+* The cluster 3 holds quite well students that fail the course (G3 < 10) but are not outliers.
+* The cluster 2 holds mostly students that passed the course but did not obtain a very good final grade (between 10 and 14).
+* The cluster 1 holds the best students, which obtained 15 or more in the final grade).
+
+
+## Regression and linear modelling
+The aim of this section is to be able to predict the final grade of the students given their first grade and other relevant variables. This will help the schools detect the students that are in risk to fail the subject, allowing them to take measures (for example giving extra support classes to these students).  
+The following linear model is created to try to model the final grade given the first grade of the students:
+
+```{r echo=FALSE}
+x <- xNotScaled
+linearModel <- lm(x$G3 ~ x$G1)
+plot(x$G1, x$G3, xlab="G1", ylab="G3", main="G3 given G1")
+abline(a=-1.653, b=1.106)
+```
+
+The outliers smooth the linear model's slope but it can not model them because they do not follow any linearity (the slope that they follow is 0).  
+
+The following graphic shows the relation between the model's fitted values and their residuals:
+
+```{r echo=FALSE}
+plot(linearModel$fitted.values, linearModel$residuals, xlab="fitted values", ylab="residuals", main="Model's fitted values and residuals")
+```
+
+It shows that there are some individuals (the outliers) that are not well modelled. To continue evaluating the linear model, a cook's distance graphic is displayed:
+
+```{r echo=FALSE}
+cooksDistance <- cooks.distance(linearModel)
+plot(1:length(cooksDistance), cooksDistance, type="h", xlab="student instances", ylab="Cook's distance", main="Model's cook's distance")
+```
+
+It is quite noisy so it only confirms the previous beliefs: The linear model is unable to model the data properly due to outliers.  
+Adding other variables to the linear model only increase its complexity but do not improve it. In this situation, the outliers must be removed to be able to create a model that adjusts better to the data.  
+Since outliers are the students that score 0 in the final grade, it is easy to remove them manually. The next graphic shows the linear model calculated without the outliers:
+
+```{r echo=FALSE}
+outliers <- xNotScaled[, "G3"] == 0
+xWithoutOutliers <- xNotScaled[!outliers, ]
+linearModel <- lm(xWithoutOutliers$G3 ~ xWithoutOutliers$G1)
+plot(xWithoutOutliers$G1, xWithoutOutliers$G3, xlab="G1", ylab="G3", main="G3 given G1 no outliers")
+abline(a=1.5134, b=0.8883)
+
+variabilityLm <- summary(linearModel)$r.squared
+```
+
+In the cases where removing the outliers is not that obvious, robust fitting over the linear model should be used to create a linear model not affected by outliers. The following graphic shows the calculated robust fitting linear model for this data:
+
+```{r echo=FALSE}
+robustLm <- rlm(xNotScaled$G3 ~ xNotScaled$G1)
+plot(xNotScaled$G1, xNotScaled$G3, xlab="G1", ylab="G3", main="G3 given G1 robust fitting")
+abline(a=0.1639, b=0.9825)
+
+SYY <- sum((xNotScaled$G3-mean(xNotScaled$G3))^2)
+SSReg <- sum((robustLm$fitted.values-mean(xNotScaled$G3))^2)
+RSS <- sum(robustLm$residuals^2)
+variabilityRobustLm <- SSReg/SYY
+```
+
+Both models adjust very well to the grades' linearity. The following table shows information about each model:
+
+|              Method            | intercept | slope | variability |
+|--------------------------------|-----------|-------|-------------|
+| Linear Model without outliers  |    1.51   |  0.89 |     0.80    |
+| Robust Fitting of Linear Model |    0.16   |  0.98 |     0.52    |
+
+Note that the explained variability of the linear model without outliers is much bigger than the one of the robust fitting linear model. This is because the first one compares the linear model against the data without outliers while the second one compares it against data with outliers. However, both should have similar variability if compared against the same data, because both describe a similar linear model.  
+
+The slope of both models is much bigger than 0.5. This means that the grade of the students that are not outliers grows from the first grade to the final one.  
+
+Any of these two models could be used as a regression function but the first one should be chosen because all the outliers were removed manually assuring the best results.
+
+## Conclusions
+The whole practice has been focused on the analysis of the variables of mathematics students, most of it trying to explain their final grade given other variables.  
+
+The section [Data analysis](#data-analysis) has been very useful to understand the data (distribution and dependence among variables). This knowledge has been used in the rest sections.  
+
+The [Dimensionality reduction](#dimensionality-reduction) has allowed to reduce the number of variables while keeping the knowledge of the data, by selecting the most relevant variables and combining several of them into one (by using MultiDimensional Scaling).  
+
+When applying [Clustering](#clustering) methods to the selected 11 variables, only three of them are important to assign a student to his/her corresponding cluster (the variables are sex, address and higher). When applying clustering only to the grades and choosing 2 as the number of clusters, they separate the students that pass from the ones that do not pass the subject (final grade <10). When applying clustering only to the grades and choosing 4 as the number of clusters, they separate the students in the following clusters (given their final grade): outliers, failed, passed and best.  
+
+The generated [Linear Model](#regression-and-linear-modelling) fits well for normal students but not for the outliers (who also smooth its slope). Adding any other variable does not improve the linear model's performance for the outliers because they do not have linearity (their slope is equal to 0). A good way to fix this problem would be to find a way of detecting outliers based on the variables that are not grades. Then, only the first grade and the boolean outlier variable (yes or no) would be enough to model all students' grades. However, the conclusion after analysing the outlier instances is that there is no way of distinguishing them from the normal students because they are heterogeneous and do not follow any pattern. They could be students that have abandoned their studies (in the second term) or did not take the corresponding exams. This could explain why they have a common first grade but score 0 in the second or final grade. There is no way of modelling them with the provided data so, for further analysis, high schools would have to explain why this students are outliers; in order to generate a model that fits them properly.
+This problem has been successfully solved in two different ways: removing the outliers to construct a linear model and using a robust fitting linear model.  
+
+As final conclusion, the linear models' slopes mean that the students' final grade is higher than their first one. This could be because they might find difficult to begin with the mathematics subject but they get accustomed to it improving over the course. Another explanation could be that teachers tend to be more exigent in the first exam so that students study harder and the results are shown in the final grade.
